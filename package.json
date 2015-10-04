@@ -1,0 +1,25 @@
+{
+    "name": "gobem",
+    "version": "0.0.1",
+    "description": "A builder for BEM projects.",
+    "keywords": ["bem", "builder", "build", "bundler", "bundle", "block", "element", "modifier", "bemfs"],
+    "main": "index.js",
+    "dependencies": {
+        "async": "*",
+        "chokidar": "*",
+        "fs-extra": "*"
+    },
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": {
+        "name": "Stepan Zhevak",
+        "email": "enet@protonmail.ch",
+        "url": "zhevak.name"
+    },
+    "repository": "https://github.com/Enet/gobem",
+    "license": "GPLv3",
+    "engines": {
+        "node": ">=4.0.0"
+    }
+}
