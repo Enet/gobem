@@ -50,7 +50,7 @@ function scanFolder (rootDir, currentDir, callback) {
                 if (error) return next(error);
                 if (fileStats.isDirectory()) {
                     if (depthLevel === 0 && utils.isEntryPoint(fileName)) {
-                        fileStorage[path.join(relFilePath, fileName + '.' + depTech)] = '{"' + path.dirname(relFilePath) + '":[]}';
+                        fileStorage[path.join(relFilePath, fileName + '.' + depTech)] = '{}';
                     }
                     scanFolder(rootDir, filePath, next);
                 } else if (depthLevel >= 1 && fileName.slice(-1 - depTech.length) === '.' + depTech) {

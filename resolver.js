@@ -12,7 +12,12 @@ module.exports = function (next, config, deps) {
             fileData = {};
         try {
             fileData = JSON.parse(fileContent);
-            if (typeof fileData !== 'object' || fileData === null) throw null;
+            if (typeof fileData !== 'object' || fileData === null) {
+                throw null;
+            } else {
+                let catName = filePath.substr(0, filePath.indexOf(path.sep));
+                fileData[catName] = fileData[catName] || [];
+            }
         } catch (error) {
             error.stack = `Invalid JSON could not be parsed! (path: ${filePath})\n` + error.stack;
             return next(error);

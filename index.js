@@ -53,9 +53,10 @@ module.exports = {
 
         currentConfig.maxExecutionTime = (userConfig.maxExecutionTime * 1000) || 60000;
         currentConfig.clearOutput = userConfig.clearOutput || true;
-        currentConfig.overwriteOutput = userConfig.overwriteOutput || true;
+        currentConfig.overwriteOutput = userConfig.overwriteOutput === undefined ? true : !!userConfig.overwriteOutput;
         currentConfig.rebuildByWatcher = userConfig.rebuildByWatcher || false;
-        currentConfig.rebuildByTimer = +userConfig.rebuildByTimer || 0;
+        currentConfig.rebuildByTimer = (userConfig.rebuildByTimer * 1000) || 0;
+        currentConfig.rebuildByError = (userConfig.rebuildByError * 1000) || 20000;
         if (userConfig.rebuildByFile) {
             if (!(userConfig.rebuildByFile instanceof Array)) userConfig.rebuildByFile = [userConfig.rebuildByFile];
             currentConfig.rebuildByFile = userConfig.rebuildByFile.map(filePath => path.join(currentConfig.rootDir, filePath));
@@ -102,11 +103,11 @@ module.exports = {
             require('gobem/resolver')(next, config, deps);
         }, function (modules, next) {
             require('gobem/mapper')(next, config, modules);
-        }, function (pages, next) {
+        }, function (modules, pages, next) {
             for (let p in pages) {
                 cachedPages[p] = Array.from(pages[p].keys());
             }
-            require('gobem/builder')(next, config, pages);
+            require('gobem/builder')(next, config, modules, pages);
         }, function (output, next) {
             if (config.afterBuilding) {
                 config.afterBuilding(error => {
@@ -214,7 +215,7 @@ function unwatchProject () {
 
 function setRebuildTimer () {
     if (config.rebuildByTimer) {
-        rebuildTimer = setTimeout(module.exports.build, config.rebuildByTimer * 1000);
+        rebuildTimer = setTimeout(module.exports.build, config.rebuildByTimer);
     }
 };
 
@@ -226,7 +227,7 @@ function setExecutionTimer () {
     if (config.maxExecutionTime) {
         executionTimer = setTimeout(function () {
             bid++;
-        }, config.maxExecutionTime * 1000);
+        }, config.maxExecutionTime);
     }
 };
 
@@ -236,7 +237,7 @@ function clearExecutionTimer () {
 
 function setErrorTimer () {
     clearRebuildTimer();
-    errorTimer = setTimeout(module.exports.build, 20 * 1000);
+    errorTimer = setTimeout(module.exports.build, config.rebuildByError);
 };
 
 function clearErrorTimer () {

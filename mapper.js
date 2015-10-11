@@ -61,7 +61,7 @@ module.exports = function (next, config, modules) {
             }, pageNext);
         }, wrapperNext);
     }, error => {
-        next(error, pages);
+        next(error, utils.deepFreeze(modules), pages);
     });
 };
 

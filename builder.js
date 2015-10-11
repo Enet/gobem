@@ -5,7 +5,7 @@ let fs = require('fs-extra'),
     path = require('path'),
     processors = {};
 
-module.exports = function (next, config, pages) {
+module.exports = function (next, config, modules, pages) {
     fs.readFile(path.join(config.rootDir, config.buildFile), 'utf8', (error, content) => {
         if (error) {
             error.stack = `Build file can not be readed! (file: ${config.buildFile})\n` + error.stack;
@@ -55,6 +55,8 @@ module.exports = function (next, config, pages) {
                         incorrectStorageError = new Error(`Incorrect storage number! (line: ${i + 1}, command: ${command})`);
 
                     args.config = config;
+                    args.modules = modules;
+                    args.page = pageName;
                     switch (command) {
                         case 'select':
                             if (isNaN(storageNumber)) return instructionNext(incorrectStorageError);
@@ -97,9 +99,16 @@ module.exports = function (next, config, pages) {
                                     fnNext(null);
                                 }
                             }, error => {
-                                if (error && error.stack) error.stack = `Error occured during processing! (line: ${i + 1}, processor: ${args[0]})\n${error.stack}`;
-                                buffer = output;
-                                instructionNext(error);
+                                function clearNext (error) {
+                                    if (error && error.stack) error.stack = `Error occured during processing! (line: ${i + 1}, processor: ${args[0]})\n${error.stack}`;
+                                    buffer = output;
+                                    instructionNext(error);
+                                };
+                                if (error || typeof processor.clear !== 'function') {
+                                    clearNext(error);
+                                } else {
+                                    processor.clear(clearNext, buffer, output, args);
+                                }
                             });
                             break;
                         case 'write':
