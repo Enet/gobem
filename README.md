@@ -51,8 +51,8 @@ All files of the project should be named according with these rules.
 
 > When pages, wrappers and languages intersect each other, we get **exit points**. Exit points are independent and **gobem** builds files of each one. Typical names for exit points are `components/p-info+components/w-app:` or `components/w-app+components/w-app:en`.
 
-Build process is independent for each exit point! The amount of output files could be calculated as:\
-`(files) = (wrappers) * (pages) * (langs) * (deps) * (techs)`\
+Build process is independent for each exit point! The amount of output files could be calculated as:<br>
+`(files) = (wrappers) * (pages) * (langs) * (deps) * (techs)`<br>
 Of course the real number is less, because not all files exist.
 
 ### Modules and Files
@@ -76,13 +76,13 @@ then **1 module** will be mapped with **9 files**:
 
 ### Wrappers, Pages, Singletons, Blocks
 The client-side architecture of any well-designed single page application consists of the following block's types:
-* **wrapper** (prefix `w-`)\
+* **wrapper** (prefix `w-`)<br>
 Constant block, which manages pages inside itself. It loads necessary resources (styles, scripts, templates, etc) and changes the content of page's container. Wrapper is a singleton, loaded only once.
-* **page** (prefix `p-`)\
+* **page** (prefix `p-`)<br>
 Just a regular block. Any page could be loaded many times.
-* **singleton** (prefix `s-`)\
+* **singleton** (prefix `s-`)<br>
 Singleton is a block, loaded only once with wrapper.
-* **block** (prefix `b-`)\
+* **block** (prefix `b-`)<br>
 Just a regular block, which could be used and loaded as much as you want.
 
 |type| is singleton |is entry point|
@@ -203,19 +203,19 @@ Returns an error, that occured in the build process. If a project has built succ
 
 ## Processing
 Processor is an entity, which gets one file's map and returns another one. The most of processor's methods have the same arguments:
-* **next<sup>( )</sup>**\
+* **next<sup>( )</sup>**<br>
 All methods are asynchronous. After processing data it needed to call this function (first argument is error).
-* **input<sup>Map</sup>**\
+* **input<sup>Map</sup>**<br>
 Read-only map, where keys are file's paths and values are file's contents.
 ```javascript
 input.get('components/w-app/elem/elem.js');
 ```
-* **output<sup>Map</sup>**\
+* **output<sup>Map</sup>**<br>
 Output map is the place, where all results should be stored.
 ```javascript
 output.set(filePath, '"use strict";\n' + fileContent);
 ```
-* **args<sup>[ ]</sup>**\
+* **args<sup>[ ]</sup>**<br>
 An array of arguments from build.gb. Also some additional fields are available:
     - `args.config` - initial **gobem** config;
     - `args.modules` - an array of all project's modules;
@@ -282,7 +282,13 @@ To describe dependencies between modules, it is used `deps.json` technology. Bel
 ```
 /* w-app.deps.json */
 {
-    "components": ["_size_big", "__border", "_color_red", "b-block", "_disabled"],
+    "components": [
+        "_size_big",
+        "__border",
+        "_color_red",
+        "b-block",
+        "_disabled"
+    ],
     "scripts": ["jquery"],
     "services": ["timer", "ajax"]
 }
