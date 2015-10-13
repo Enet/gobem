@@ -5,7 +5,7 @@ let fs = require('fs-extra'),
     path = require('path'),
     processors = {};
 
-module.exports = function (next, config, modules, pages) {
+module.exports = function (next, config, modules, exitPoints) {
     fs.readFile(path.join(config.rootDir, config.buildFile), 'utf8', (error, content) => {
         if (error) {
             error.stack = `Build file can not be readed! (file: ${config.buildFile})\n` + error.stack;
@@ -22,7 +22,7 @@ module.exports = function (next, config, modules, pages) {
 
         let output = {
                 files: {},
-                pages: {}
+                exitPoints: {}
             },
             outputPath = path.join(config.rootDir, config.outputDir);
 
@@ -36,13 +36,13 @@ module.exports = function (next, config, modules, pages) {
                 next();
             }
         }, next => {
-            async.forEachOf(pages, (page, pageName, pageNext) => {
-                output.pages[pageName] = [];
+            async.forEachOf(exitPoints, (exitPoint, exitPointName, exitPointNext) => {
+                output.exitPoints[exitPointName] = [];
                 let buffer = new Map(),
                     storages = {0: new Map()};
 
-                for (let f of page.keys()) {
-                    buffer.set(path.relative(config.rootDir, f), page.get(f));
+                for (let f of exitPoint.keys()) {
+                    buffer.set(path.relative(config.rootDir, f), exitPoint.get(f));
                 }
 
                 copyFiles(buffer, storages[0]);
@@ -56,7 +56,7 @@ module.exports = function (next, config, modules, pages) {
 
                     args.config = config;
                     args.modules = modules;
-                    args.page = pageName;
+                    args.exitPoint = exitPointName;
                     switch (command) {
                         case 'select':
                             if (isNaN(storageNumber)) return instructionNext(incorrectStorageError);
@@ -125,7 +125,7 @@ module.exports = function (next, config, modules, pages) {
                             break;
                         case 'list':
                         case 'print':
-                            if (!args[0] || args[0] === pageName) console.log(instruction.command === 'list' ? Array.from(buffer.keys()) : buffer);
+                            if (!args[0] || args[0] === exitPointName) console.log(instruction.command === 'list' ? Array.from(buffer.keys()) : buffer);
                             instructionNext(null);
                             break;
                         default:
@@ -133,17 +133,17 @@ module.exports = function (next, config, modules, pages) {
                     }
                 }, error => {
                     let storageKeys = Object.keys(storages),
-                        pageOutput = storages[Math.max.apply(Math, storageKeys)];
+                        exitPointOutput = storages[Math.max.apply(Math, storageKeys)];
 
-                    for (let p of pageOutput.keys()) {
-                        let fileContent = pageOutput.get(p);
+                    for (let e of exitPointOutput.keys()) {
+                        let fileContent = exitPointOutput.get(e);
                         if (typeof fileContent === 'string') {
-                            output.files[path.join(config.overwriteOutput ? '' : pageName, p)] = fileContent;
-                            output.pages[pageName].push(p);
+                            output.files[path.join(config.overwriteOutput ? '' : exitPointName, e)] = fileContent;
+                            output.exitPoints[exitPointName].push(e);
                         }
                     }
 
-                    pageNext(error);
+                    exitPointNext(error);
                 });
             }, next);
         }, next => {
@@ -151,7 +151,7 @@ module.exports = function (next, config, modules, pages) {
                 fs.outputFile(path.join(outputPath, filePath), fileContent, fileNext);
             }, next);
         }], error => {
-            next(error, output.pages);
+            next(error, output.exitPoints);
         });
 
     });

@@ -16,7 +16,7 @@ let path = require('path'),
 let config = {},
     state = STATE_FREE,
     bid = 0,
-    cachedPages = {},
+    cachedExitPoints = {},
     cachedOutput = {},
     callbacks = [],
     rebuildWatcher,
@@ -34,7 +34,7 @@ module.exports = {
 
         currentConfig.rootDir = path.normalize(userConfig.rootDir);
         currentConfig.outputDir = path.normalize(userConfig.outputDir || 'output');
-        currentConfig.buildFile = path.normalize(userConfig.buildFile || 'build.bp');
+        currentConfig.buildFile = path.normalize(userConfig.buildFile || 'build.gb');
         currentConfig.depTech = (userConfig.depTech || 'deps.json') + '';
         if (userConfig.excludePath) {
             if (!(userConfig.excludePath instanceof Array)) userConfig.excludePath = [userConfig.excludePath];
@@ -51,8 +51,8 @@ module.exports = {
 
         currentConfig.extraArguments = userConfig.extraArguments instanceof Array ? userConfig.extraArguments : [];
 
-        currentConfig.maxExecutionTime = (userConfig.maxExecutionTime * 1000) || 60000;
-        currentConfig.clearOutput = userConfig.clearOutput || true;
+        currentConfig.maxExecutionTime = userConfig.maxExecutionTime >= 0 ? userConfig.maxExecutionTime * 1000 : 60000;
+        currentConfig.clearOutput = userConfig.clearOutput === undefined ? true : !!userConfig.clearOutput;
         currentConfig.overwriteOutput = userConfig.overwriteOutput === undefined ? true : !!userConfig.overwriteOutput;
         currentConfig.rebuildByWatcher = userConfig.rebuildByWatcher || false;
         currentConfig.rebuildByTimer = (userConfig.rebuildByTimer * 1000) || 0;
@@ -77,7 +77,7 @@ module.exports = {
 
     build: function () {
         let lastBid = ++bid,
-            lastCachedPages = cachedPages,
+            lastCachedExitPoints = cachedExitPoints,
             lastCachedOutput = cachedOutput;
 
         clearRebuildTimer();
@@ -103,11 +103,11 @@ module.exports = {
             require('gobem/resolver')(next, config, deps);
         }, function (modules, next) {
             require('gobem/mapper')(next, config, modules);
-        }, function (modules, pages, next) {
-            for (let p in pages) {
-                cachedPages[p] = Array.from(pages[p].keys());
+        }, function (modules, exitPoints, next) {
+            for (let e in exitPoints) {
+                cachedExitPoints[e] = Array.from(exitPoints[e].keys());
             }
-            require('gobem/builder')(next, config, modules, pages);
+            require('gobem/builder')(next, config, modules, exitPoints);
         }, function (output, next) {
             if (config.afterBuilding) {
                 config.afterBuilding(error => {
@@ -121,7 +121,7 @@ module.exports = {
 
             clearExecutionTimer();
             if (error) {
-                cachedPages = lastCachedPages;
+                cachedExitPoints = lastCachedExitPoints;
                 cachedOutput = lastCachedOutput;
 
                 errorMessage = error;
@@ -157,12 +157,12 @@ module.exports = {
         return this;
     },
 
-    use: function (entryPointName) {
+    use: function (exitPointName) {
         if (state === STATE_FREE) module.exports.build();
         return new Promise(function (resolve, reject) {
             switch (state) {
                 case STATE_READY:
-                    resolve(cachedOutput[entryPointName]);
+                    resolve(cachedOutput[exitPointName]);
                     break;
                 case STATE_ERROR:
                     reject(errorMessage);
@@ -172,7 +172,7 @@ module.exports = {
                         if (state === STATE_ERROR) {
                             reject(errorMessage);
                         } else {
-                            resolve(cachedOutput[entryPointName]);
+                            resolve(cachedOutput[exitPointName]);
                         }
                     });
             }
@@ -191,7 +191,7 @@ function executeCallbacks () {
 };
 
 function resetResources () {
-    cachedPages = {};
+    cachedExitPoints = {};
     cachedOutput = {};
 };
 
@@ -203,8 +203,8 @@ function watchProject () {
         ignoreInitial: true
     }).on('all', function onFileChange (event, filePath) {
         if (~config.rebuildByFile.indexOf(filePath)) return module.exports.build();
-        for (let p in cachedPages) {
-            if (~cachedPages[p].indexOf(filePath)) return module.exports.build();
+        for (let e in cachedExitPoints) {
+            if (~cachedExitPoints[e].indexOf(filePath)) return module.exports.build();
         }
     });
 };

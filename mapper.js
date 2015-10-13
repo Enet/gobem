@@ -12,7 +12,7 @@ module.exports = function (next, config, modules) {
             w: {}, // wrappers
             pw: {} // pages + wrappers
         },
-        pages = {};
+        exitPoints = {};
 
     for (let m in modules) {
         let moduleInfo = moduleInfoMap[m] = utils.getModuleInfo(m);
@@ -27,12 +27,12 @@ module.exports = function (next, config, modules) {
 
     // (wrappers) * (pages) * (langs) * (deps) * (techs) === (files)
     async.forEachOf(entryPoints.w, (wrapperDeps, wrapperPath, wrapperNext) => {
-        let wrapperName = moduleInfoMap[wrapperPath].catName + '*' + moduleInfoMap[wrapperPath].blockName;
+        let wrapperName = moduleInfoMap[wrapperPath].catName + '/' + moduleInfoMap[wrapperPath].blockName;
         async.forEachOf(entryPoints.pw, (pageDeps, pagePath, pageNext) => {
-            let pageName = moduleInfoMap[pagePath].catName + '*' + moduleInfoMap[pagePath].blockName,
+            let pageName = moduleInfoMap[pagePath].catName + '/' + moduleInfoMap[pagePath].blockName,
                 deps = mergeDeps(wrapperDeps, pageDeps);
             async.each(config.buildLangs, (langName, langNext) => {
-                let page = pages[pageName + '+' + wrapperName + ':' + langName] = new Map();
+                let exitPoint = exitPoints[pageName + '+' + wrapperName + ':' + langName] = new Map();
                 async.eachSeries(deps, (dep, depNext) => {
                     let moduleInfo = utils.getModuleInfo(dep);
                     moduleInfo.langName = langName;
@@ -44,16 +44,16 @@ module.exports = function (next, config, modules) {
                         } else if (~config.buildLoaders.indexOf(techName)) {
                             fs.readFile(filePath, 'utf8', (error, content) => {
                                 if (error === 'ENOENT') {
-                                    page.set(filePath, undefined);
+                                    exitPoint.set(filePath, undefined);
                                 } else if (error) {
-                                    page.set(filePath, null);
+                                    exitPoint.set(filePath, null);
                                 } else {
-                                    page.set(filePath, content);
+                                    exitPoint.set(filePath, content);
                                 }
                                 techNext();
                             });
                         } else {
-                            page.set(filePath, null);
+                            exitPoint.set(filePath, null);
                             techNext();
                         }
                     }, depNext);
@@ -61,7 +61,7 @@ module.exports = function (next, config, modules) {
             }, pageNext);
         }, wrapperNext);
     }, error => {
-        next(error, utils.deepFreeze(modules), pages);
+        next(error, utils.deepFreeze(modules), exitPoints);
     });
 };
 
