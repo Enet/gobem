@@ -34,7 +34,6 @@ module.exports = {
 
         currentConfig.rootDir = path.normalize(userConfig.rootDir);
         currentConfig.outputDir = path.normalize(userConfig.outputDir || 'output');
-        currentConfig.buildFile = path.normalize(userConfig.buildFile || 'build.gb');
         currentConfig.depTech = (userConfig.depTech || 'deps.json') + '';
         if (userConfig.excludePath) {
             if (!(userConfig.excludePath instanceof Array)) userConfig.excludePath = [userConfig.excludePath];
@@ -49,7 +48,7 @@ module.exports = {
         if (!currentConfig.buildLangs.length) currentConfig.buildLangs.push('');
         if (!currentConfig.buildLoaders.length) currentConfig.buildLoaders = currentConfig.buildTechs;
 
-        currentConfig.extraArguments = userConfig.extraArguments instanceof Array ? userConfig.extraArguments : [];
+        currentConfig.buildInstructions = userConfig.buildInstructions instanceof Array ? userConfig.buildInstructions : [];
 
         currentConfig.maxExecutionTime = userConfig.maxExecutionTime >= 0 ? userConfig.maxExecutionTime * 1000 : 60000;
         currentConfig.clearOutput = userConfig.clearOutput === undefined ? true : !!userConfig.clearOutput;
@@ -98,16 +97,16 @@ module.exports = {
                 next();
             }
         }, function (next) {
-            require('gobem/scanner')(next, config);
+            require(path.join('gobem', 'scanner'))(next, config);
         }, function (deps, next) {
-            require('gobem/resolver')(next, config, deps);
+            require(path.join('gobem', 'resolver'))(next, config, deps);
         }, function (modules, next) {
-            require('gobem/mapper')(next, config, modules);
+            require(path.join('gobem', 'mapper'))(next, config, modules);
         }, function (modules, exitPoints, next) {
             for (let e in exitPoints) {
                 cachedExitPoints[e] = Array.from(exitPoints[e].keys());
             }
-            require('gobem/builder')(next, config, modules, exitPoints);
+            require(path.join('gobem', 'builder'))(next, config, modules, exitPoints);
         }, function (output, next) {
             if (config.afterBuilding) {
                 config.afterBuilding(error => {

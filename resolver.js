@@ -1,7 +1,7 @@
 'use strict';
 
-let utils = require('gobem/utils'),
-    path = require('path');
+let path = require('path'),
+    utils = require(path.join('gobem', 'utils'));
 
 module.exports = function (next, config, deps) {
     let parsedModules = {};

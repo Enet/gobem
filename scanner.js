@@ -3,7 +3,7 @@
 let fs = require('fs'),
     path = require('path'),
     async = require('async'),
-    utils = require('gobem/utils'),
+    utils = require(path.join('gobem', 'utils')),
     depTech,
     excludePath;
 

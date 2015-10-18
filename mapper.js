@@ -3,7 +3,7 @@
 let fs = require('fs'),
     async = require('async'),
     path = require('path'),
-    utils = require('gobem/utils');
+    utils = require(path.join('gobem', 'utils'));
 
 module.exports = function (next, config, modules) {
     let moduleInfoMap = {},
@@ -31,33 +31,39 @@ module.exports = function (next, config, modules) {
         async.forEachOf(entryPoints.pw, (pageDeps, pagePath, pageNext) => {
             let pageName = moduleInfoMap[pagePath].catName + '/' + moduleInfoMap[pagePath].blockName,
                 deps = mergeDeps(wrapperDeps, pageDeps);
-            async.each(config.buildLangs, (langName, langNext) => {
-                let exitPoint = exitPoints[pageName + '+' + wrapperName + ':' + langName] = new Map();
-                async.eachSeries(deps, (dep, depNext) => {
-                    let moduleInfo = utils.getModuleInfo(dep);
-                    moduleInfo.langName = langName;
-                    async.each(config.buildTechs, (techName, techNext) => {
-                        moduleInfo.techName = techName;
-                        let filePath = path.join(config.rootDir, utils.generateFilePath(moduleInfo));
-                        if (utils.isExcluded(filePath, config.excludePath)) {
-                            techNext();
-                        } else if (~config.buildLoaders.indexOf(techName)) {
-                            fs.readFile(filePath, 'utf8', (error, content) => {
-                                if (error === 'ENOENT') {
-                                    exitPoint.set(filePath, undefined);
-                                } else if (error) {
-                                    exitPoint.set(filePath, null);
-                                } else {
-                                    exitPoint.set(filePath, content);
-                                }
+            async.each(config.buildLangs, (localeName, localeNext) => {
+                let exitPoint = exitPoints[pageName + '+' + wrapperName + ':' + localeName] = new Map();
+                // localeName is a language of the building
+                // langName is a language of the file
+                async.each(['', localeName || null], (langName, langNext) => {
+                    if (langName === null) return langNext();
+                    if (!langName && config.buildLangs.indexOf(langName) === -1) return langNext();
+                    async.eachSeries(deps, (dep, depNext) => {
+                        let moduleInfo = utils.getModuleInfo(dep);
+                        moduleInfo.langName = langName;
+                        async.each(config.buildTechs, (techName, techNext) => {
+                            moduleInfo.techName = techName;
+                            let filePath = path.join(config.rootDir, utils.generateFilePath(moduleInfo));
+                            if (utils.isExcluded(filePath, config.excludePath)) {
                                 techNext();
-                            });
-                        } else {
-                            exitPoint.set(filePath, null);
-                            techNext();
-                        }
-                    }, depNext);
-                }, langNext);
+                            } else if (~config.buildLoaders.indexOf(techName)) {
+                                fs.readFile(filePath, 'utf8', (error, content) => {
+                                    if (error === 'ENOENT') {
+                                        exitPoint.set(filePath, undefined);
+                                    } else if (error) {
+                                        exitPoint.set(filePath, null);
+                                    } else {
+                                        exitPoint.set(filePath, content);
+                                    }
+                                    techNext();
+                                });
+                            } else {
+                                exitPoint.set(filePath, null);
+                                techNext();
+                            }
+                        }, depNext);
+                    }, langNext);
+                }, localeNext);
             }, pageNext);
         }, wrapperNext);
     }, error => {

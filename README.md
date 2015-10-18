@@ -116,8 +116,14 @@ Root directory should be an **absolute** path to the folder, containing project 
 ### outputDir<sup>abc</sup>
 Output directory should be a **relative** path to the folder, where resulting files will be saved. By default is equal `output`.
 
-### buildFile<sup>abc</sup>
-Build file is a file, containing build instructions (see build.gb below). Path should be **relative**. By default is equal `build.gb`.
+### buildInstructions<sup>[ ]</sup>
+An array of instructions, which will be executed during each rebuilding. Each instruction is an array too, which contains a name of a processor and arguments for a function-constructor. Example given:
+```javascript
+config.buildInstructions = [
+    ['select', 0, /\.js$/],
+    ['write', 1]
+];
+```
 
 ### excludePath<sup>[ ]</sup>
 If you want to exclude some folders or files from your project, point this fact here. All paths should be **relative**. If you have only one file to exclude, string could be passed.
@@ -135,9 +141,6 @@ An array of the technologies, which should be built. By default is `[]` (nothing
 An array of the technologies, which should be loaded in the memory. By default is equal to `buildTechs` (all technologies will be loaded). Not loaded files is processed too, but their content is equal `null`. You are able to load ones by your preferred way inside a processor.
 
 This feature is needed, for example, to prevent loading *.node.js files (usually we use `require` to connect npm-modules).
-
-### extraArguments<sup>[ ]</sup>
-An array of the arguments, which are passed to constructor of each processor. Try not to use this feature, because extra arguments could be different from project to project.
 
 ### maxExecutionTime<sup>123</sup>
 This number is an upper time limit of the build process (in seconds). Default value is `60` seconds. `0` means there is no limit.
@@ -174,7 +177,7 @@ Triggers rebuilding, when any project's file have been changed. By default is `f
 ### rebuildByFile<sup>[ ]</sup>
 This is a list of files, where all paths are **relative**. If a file from the list is changed, rebuilding is triggered. By default it's empty array `[]`. In case with one file could be a string.
 
-For example, you can add in this array build.gb and rebuild your project immediately after build instructions have been changed.
+For example, you can add in this array `build.js` (module, which constructs `buildInstructions`) and rebuild your project immediately after build instructions have been changed.
 
 ### rebuildByTimer<sup>123</sup>
 The time in seconds between two successful rebuldings. Default value is `0`, what means that the project aren't rebuilt by timer.
@@ -215,52 +218,43 @@ Output map is the place, where all results should be stored.
 ```javascript
 output.set(filePath, '"use strict";\n' + fileContent);
 ```
-* **args<sup>[ ]</sup>**<br>
-An array of arguments from build.gb. Also some additional fields are available:
-    - `args.config` - initial **gobem** config;
-    - `args.modules` - an array of all project's modules;
-    - `args.exitPoint` - the name of a current exit point.
+* **config<sup>{ }</sup>**<br>
+Initial **gobem** config.
 
-### processor = require(name)(extra1, extra2, ...)
-Each processor is a separate npm-module. This module should export factory-function, which returns required processor. Factory gets `extraArguments` from initial config. An example given how to create empty processor:
+### processor = require(name)(arg1, arg2, ...)
+Each processor is a separate npm-module. This module should export a factory-function, which returns required processor. The factory gets arguments from `buildInstructions`. An example given how to create the empty processor:
 ```javascript
-module.exports = function (extra1, extra2) {
+module.exports = function (arg1, arg2) {
     return {};
 };
 ```
 
-### processor.before(next<sup>( )</sup>, in<sup>Map</sup>, out<sup>Map</sup>, args<sup>[ ]</sup>)
+### processor.before(next<sup>( )</sup>, in<sup>Map</sup>, out<sup>Map</sup>, config<sup>{ }</sup>)
 This method is called before processing (once per exit point).
 
-### processor.process(next<sup>( )</sup>, in<sup>Map</sup>, out<sup>Map</sup>, args<sup>[ ]</sup>, content<sup>abc</sup>, path<sup>abc</sup>)
+### processor.process(next<sup>( )</sup>, in<sup>Map</sup>, out<sup>Map</sup>, config<sup>{ }</sup>, content<sup>abc</sup>, path<sup>abc</sup>)
 This method is called for each file of a current exit point. Pay attention, that `path` always is a string with file's path, but `content` could be different.
 * Usually it is a string, containing file's content.
 * If file doesn't exist, `content` is `undefined`.
 * If file has technology, not specified in `buildLoaders`, `content` will be equal `null` (it means **gobem** even didn't try to load file).
 
-### processor.after(next<sup>( )</sup>, in<sup>Map</sup>, out<sup>Map</sup>, args<sup>[ ]</sup>)
+### processor.after(next<sup>( )</sup>, in<sup>Map</sup>, out<sup>Map</sup>, config<sup>{ }</sup>)
 This method is called only after **successful** processing (once per exit point).
 
-### processor.clear(next<sup>( )</sup>, in<sup>Map</sup>, out<sup>Map</sup>, args<sup>[ ]</sup>)
+### processor.clear(next<sup>( )</sup>, in<sup>Map</sup>, out<sup>Map</sup>, config<sup>{ }</sup>)
 This method is **always** called after processing has finished (once per exit point). Its goal to release using resources.
 
-## Build.gb
-Build.gb (or any other `buildFile`) is a file, consists of build instructions. It says to **gobem** how to build each exit point. **gobem** applies the same instructions to each exit point.
+## Build Instructions
+An array `buildInstructions` says to **gobem** how to build each exit point. It means **gobem** applies the same instructions to each exit point.
 
-Also you need to understand the conception of virtual storages. 0-storage is read-only, it's source files of exit point. Then **gobem** copies files from one storage to another, processes ones, clears some storages and finally gets output - resulting files. But what is the output? It is the storage with a maximal id.
+Each instruction from this array contains as the first argument the name of the processor, which should be used. Except processors, installed in the directory `node_modules`, you are able to use some internal processors. Usually they work with virtual storages.
+
+What are virtual storages? 0-storage is read-only, it's source files of exit point. Then **gobem** copies files from one storage to another, processes ones, clears some storages and finally gets output - resulting files. But what is the output? It is the storage with a maximal id.
+
+Obligatorily see an example in the end of section, how `buildInstructions` work! Below are described all internal processors of **gobem**:
 
 ### select storage<sup>123</sup> regexp<sup>/.*/</sup>
 Copies files, whose paths satisfy the regular expression `regexp`, from the `storage` to the buffer. By default `regexp` is `.*`, that means all files are matched.
-```
-select 0 *.js
-writes 1
-```
-
-### process processor<sup>abc</sup> arg1<sup>abc</sup> arg2<sup>abc</sup> ...
-Uses `processor` to process all files from the buffer. Processor gets arguments, which could be handled.
-```
-process concat arg1 'spaces and \'escaped quotes\' are available' arg3
-```
 
 ### write storage<sup>123</sup>
 Writes all files from the buffer to the `storage`.
@@ -268,14 +262,39 @@ Writes all files from the buffer to the `storage`.
 ### clear storage<sup>123</sup>
 Deletes all files of the `storage`.
 
-### list exitPointName<sup>abc</sup>
-Prints to console paths of all files from the buffer (for debugging). If `exitPointName` is specified, this command works only for it.
+### debug callback<sup>( )</sup> exitPointName<sup>abc</sup>
+Passes iterable keys and values to `callback`. If `exitPointName` is specified, then this processor works only for one exit point.
 
-### print exitPointName<sup>abc</sup>
-Prints to console contents of all files from the buffer (for debugging). If `exitPointName` is specified, this command works only for it.
+```javascript
+// abstract example of an array with build instructions
+config.buildInstructions = [
+    ['select', 0, /^[^.]+\.lib\.js$/],
+    ['gobem-proc-js-minify'],
+    ['write', 1],
 
-### // comments
-Comments are available, its start by // and are followed until the end of the line.
+    ['select', 0, /^[^.]+\.es6\.js$/],
+    ['gobem-proc-babel'],
+    ['write', 1],
+
+    ['select', 1],
+    ['gobem-proc-wrap-script'],
+    ['write', 2],
+
+    ['clear', 1],
+    ['select', 0, /^[^.]+\.lib\.css$/],
+    ['write', 1],
+
+    ['select', 0, /^[^.]+\.styl$/],
+    ['debug', keys => console.log(Array.from(keys)), 'modules/w-app+modules/w-app:'],
+    ['gobem-proc-stylus'],
+    ['write', 1],
+
+    ['select', 1],
+    ['gobem-proc-css-minify'],
+    ['write', 2]
+];
+// storage 2 is an output
+```
 
 ## *.deps.json
 To describe dependencies between modules, it is used `deps.json` technology. Below is how to specify dependencies, using this format:
