@@ -1,6 +1,6 @@
 {
     "name": "gobem",
-    "version": "0.0.4",
+    "version": "0.0.5",
     "description": "A builder for BEM projects.",
     "keywords": ["bem", "builder", "build", "bundler", "bundle", "block", "element", "modifier", "bemfs"],
     "main": "index.js",

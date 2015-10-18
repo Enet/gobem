@@ -37,10 +37,15 @@ module.exports = function (next, config, modules, exitPoints) {
 
             async.forEachOfSeries(instructions, (instruction, i, instructionNext) => {
                 let args = instruction.args,
-                    command = instruction.command;
+                    command = instruction.command,
+                    context = {
+                        config,
+                        modules,
+                        exitPoint: exitPointName
+                    };
 
                 try {
-                    var processor = require(instruction.path).apply(processor, args);
+                    var processor = require(instruction.path).apply(context, args);
                 } catch (error) {
                     error.stack = `Processor could not be loaded! (instruction: ${i + 1}, processor: ${command})\n` + error.stack;
                     return instructionNext(error);

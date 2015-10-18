@@ -222,9 +222,12 @@ output.set(filePath, '"use strict";\n' + fileContent);
 Initial **gobem** config.
 
 ### processor = require(name)(arg1, arg2, ...)
-Each processor is a separate npm-module. This module should export a factory-function, which returns required processor. The factory gets arguments from `buildInstructions`. An example given how to create the empty processor:
+Each processor is a separate npm-module. This module should export a factory-function, which returns required processor. The factory gets arguments from `buildInstructions`, it's executed in the special context, which has some additional information. An example given how to create the empty processor:
 ```javascript
 module.exports = function (arg1, arg2) {
+    // this.config - initial config
+    // this.modules - all modules of the current project
+    // this.exitPoint - the name of the building exit point
     return {};
 };
 ```
