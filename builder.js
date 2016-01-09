@@ -4,10 +4,8 @@ let fs = require('fs-extra'),
     async = require('async'),
     path = require('path');
 
-module.exports = function (next, config, modules, exitPoints) {
-
-    let instructions = config.buildInstructions.map(makeInstruction),
-        output = {
+module.exports = function (next, config, modules, files, exitPoints) {
+    let output = {
             files: {},
             exitPoints: {}
         },
@@ -24,8 +22,11 @@ module.exports = function (next, config, modules, exitPoints) {
         }
     }, next => {
         async.forEachOf(exitPoints, (exitPoint, exitPointName, exitPointNext) => {
-            output.exitPoints[exitPointName] = [];
-            let storages = {0: new Map()};
+            output.exitPoints[exitPointName] = {};
+            let storages = {0: new Map()},
+                instructions = typeof config.buildInstructions === 'function' ? config.buildInstructions(exitPointName) : config.buildInstructions;
+
+            instructions = (instructions instanceof Array ? instructions : []).map(makeInstruction);
             storages.buffer = new Map();
 
             for (let f of exitPoint.keys()) {
@@ -41,6 +42,7 @@ module.exports = function (next, config, modules, exitPoints) {
                     context = {
                         config,
                         modules,
+                        files,
                         exitPoint: exitPointName
                     };
 
@@ -51,7 +53,7 @@ module.exports = function (next, config, modules, exitPoints) {
                     return instructionNext(error);
                 }
 
-                if (instruction.isInternal) return processor(instructionNext, storages, i);
+                if (instruction.isInternal) return processor(instructionNext, storages, i, exitPoint);
 
                 let output = new Map(),
                     buffer = storages.buffer;
@@ -89,8 +91,7 @@ module.exports = function (next, config, modules, exitPoints) {
                 for (let e of exitPointOutput.keys()) {
                     let fileContent = exitPointOutput.get(e);
                     if (typeof fileContent === 'string') {
-                        output.files[path.join(config.overwriteOutput ? '' : exitPointName, e)] = fileContent;
-                        output.exitPoints[exitPointName].push(e);
+                        output.exitPoints[exitPointName][e] = fileContent;
                     }
                 }
 
@@ -98,15 +99,29 @@ module.exports = function (next, config, modules, exitPoints) {
             });
         }, next);
     }, next => {
-        async.forEachOf(output.files, (fileContent, filePath, fileNext) => {
-            fs.outputFile(path.join(outputPath, filePath), fileContent, fileNext);
+        async.forEachOf(output.exitPoints, (exitPoint, exitPointName, exitPointNext) => {
+            let exitPointComponents = exitPointName.replace(/:$/, '').split('+'),
+                pageName = exitPointComponents[0],
+                wrapperName = exitPointComponents[1];
+            async.forEachOf(exitPoint, (fileContent, filePath, fileNext) => {
+                if (pageName === wrapperName || typeof output.exitPoints[wrapperName + '+' + wrapperName + ':'][filePath] !== 'string') {
+                    fs.outputFile(path.join(outputPath, config.overwriteOutput ? '' : exitPointName, filePath), fileContent, fileNext);
+                } else {
+                    delete output.exitPoints[exitPointName][filePath];
+                    fileNext();
+                }
+            }, exitPointNext);
+
         }, next);
     }], error => {
+        for (let e in output.exitPoints) {
+            output.exitPoints[e] = Object.keys(output.exitPoints[e]);
+        }
         next(error, output.exitPoints);
     });
 };
 
-const internalProcs = ['select', 'write', 'clear', 'debug'];
+const internalProcs = ['select', 'write', 'clear', 'debug', 'call'];
 
 function makeInstruction (args) {
     if (!(args instanceof Array)) args = [args + ''];

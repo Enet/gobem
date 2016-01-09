@@ -12,7 +12,8 @@ module.exports = function (next, config, modules) {
             w: {}, // wrappers
             pw: {} // pages + wrappers
         },
-        exitPoints = {};
+        exitPoints = {},
+        files = new Map();
 
     for (let m in modules) {
         let moduleInfo = moduleInfoMap[m] = utils.getModuleInfo(m);
@@ -29,8 +30,7 @@ module.exports = function (next, config, modules) {
     async.forEachOf(entryPoints.w, (wrapperDeps, wrapperPath, wrapperNext) => {
         let wrapperName = moduleInfoMap[wrapperPath].catName + '/' + moduleInfoMap[wrapperPath].blockName;
         async.forEachOf(entryPoints.pw, (pageDeps, pagePath, pageNext) => {
-            let pageName = moduleInfoMap[pagePath].catName + '/' + moduleInfoMap[pagePath].blockName,
-                deps = mergeDeps(wrapperDeps, pageDeps);
+            let pageName = moduleInfoMap[pagePath].catName + '/' + moduleInfoMap[pagePath].blockName;
             async.each(config.buildLangs, (localeName, localeNext) => {
                 let exitPoint = exitPoints[pageName + '+' + wrapperName + ':' + localeName] = new Map();
                 // localeName is a language of the building
@@ -38,7 +38,7 @@ module.exports = function (next, config, modules) {
                 async.each(['', localeName || null], (langName, langNext) => {
                     if (langName === null) return langNext();
                     if (!langName && config.buildLangs.indexOf(langName) === -1) return langNext();
-                    async.eachSeries(deps, (dep, depNext) => {
+                    async.eachSeries(pageDeps, (dep, depNext) => {
                         let moduleInfo = utils.getModuleInfo(dep);
                         moduleInfo.langName = langName;
                         async.each(config.buildTechs, (techName, techNext) => {
@@ -55,6 +55,7 @@ module.exports = function (next, config, modules) {
                                     } else {
                                         exitPoint.set(filePath, content);
                                     }
+                                    files.set(filePath, exitPoint.get(filePath));
                                     techNext();
                                 });
                             } else {
@@ -67,7 +68,7 @@ module.exports = function (next, config, modules) {
             }, pageNext);
         }, wrapperNext);
     }, error => {
-        next(error, utils.deepFreeze(modules), exitPoints);
+        next(error, utils.deepFreeze(modules), files, exitPoints);
     });
 };
 
@@ -80,8 +81,4 @@ function buildEntryPoint (modules, modulePath, entryPoint) {
             if (modules[depPath] && modules[depPath].length) buildEntryPoint(modules, depPath, entryPoint);
         }
     }
-};
-
-function mergeDeps (wrapperDeps, pageDeps) {
-    return wrapperDeps === pageDeps ? wrapperDeps : pageDeps.filter(item => !~wrapperDeps.indexOf(item));
 };

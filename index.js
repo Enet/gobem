@@ -48,7 +48,7 @@ module.exports = {
         if (!currentConfig.buildLangs.length) currentConfig.buildLangs.push('');
         if (!currentConfig.buildLoaders.length) currentConfig.buildLoaders = currentConfig.buildTechs;
 
-        currentConfig.buildInstructions = userConfig.buildInstructions instanceof Array ? userConfig.buildInstructions : [];
+        currentConfig.buildInstructions = userConfig.buildInstructions;
 
         currentConfig.maxExecutionTime = userConfig.maxExecutionTime >= 0 ? userConfig.maxExecutionTime * 1000 : 60000;
         currentConfig.clearOutput = userConfig.clearOutput === undefined ? true : !!userConfig.clearOutput;
@@ -102,11 +102,11 @@ module.exports = {
             require(path.join('gobem', 'resolver'))(next, config, deps);
         }, function (modules, next) {
             require(path.join('gobem', 'mapper'))(next, config, modules);
-        }, function (modules, exitPoints, next) {
+        }, function (modules, files, exitPoints, next) {
             for (let e in exitPoints) {
                 cachedExitPoints[e] = Array.from(exitPoints[e].keys());
             }
-            require(path.join('gobem', 'builder'))(next, config, modules, exitPoints);
+            require(path.join('gobem', 'builder'))(next, config, modules, files, exitPoints);
         }, function (output, next) {
             if (config.afterBuilding) {
                 config.afterBuilding(error => {
@@ -226,6 +226,7 @@ function setExecutionTimer () {
     if (config.maxExecutionTime) {
         executionTimer = setTimeout(function () {
             bid++;
+            module.exports.build();
         }, config.maxExecutionTime);
     }
 };

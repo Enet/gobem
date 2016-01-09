@@ -125,6 +125,16 @@ config.buildInstructions = [
 ];
 ```
 
+If you have a complicated project, probably you want to use constructor function instead an array. **gobem** allows it.
+```javascript
+config.buildInstructions = function (exitPointName) {
+    return [
+        ['select', 0, /\.js$/],
+        ['write', 1]
+    ];
+};
+```
+
 ### excludePath<sup>[ ]</sup>
 If you want to exclude some folders or files from your project, point this fact here. All paths should be **relative**. If you have only one file to exclude, string could be passed.
 
@@ -266,7 +276,10 @@ Writes all files from the buffer to the `storage`.
 Deletes all files of the `storage`.
 
 ### debug callback<sup>( )</sup> exitPointName<sup>abc</sup>
-Passes iterable keys and values to `callback`. If `exitPointName` is specified, then this processor works only for one exit point.
+Passes exit point name, iterable keys and values to `callback` (3 arguments in the sum). If `exitPointName` is specified, then this processor works only for one exit point.
+
+### call callback<sup>( )</sup>
+Calls callback function with a single argument - the name of a current exit point.
 
 ```javascript
 // abstract example of an array with build instructions
@@ -288,13 +301,17 @@ config.buildInstructions = [
     ['write', 1],
 
     ['select', 0, /^[^.]+\.styl$/],
-    ['debug', keys => console.log(Array.from(keys)), 'modules/w-app+modules/w-app:'],
+    ['debug', (exitPointName, keys) => console.log(Array.from(keys)), 'modules/w-app+modules/w-app:'],
     ['gobem-proc-stylus'],
     ['write', 1],
 
     ['select', 1],
     ['gobem-proc-css-minify'],
-    ['write', 2]
+    ['write', 2],
+
+    ['call', function (exitPointName) {
+        global.counter++;
+    }]
 ];
 // storage 2 is an output
 ```
