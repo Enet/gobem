@@ -166,10 +166,10 @@ For example:
 // overwriteOutput == false
 // (each exit point has own files)
 output
-- - components/w-app+components/w-app:
+- - components^w-app+components^w-app:
 - - - - components
 - - - - scripts
-- - components/p-page+components/w-app:
+- - components^p-page+components^w-app:
 - - - - components
 
 // overwriteOutput == true

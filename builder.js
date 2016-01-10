@@ -37,6 +37,8 @@ module.exports = function (next, config, modules, files, exitPoints) {
             freezeMap(storages[0]);
 
             async.forEachOfSeries(instructions, (instruction, i, instructionNext) => {
+                if (!instruction) return instructionNext();
+
                 let args = instruction.args,
                     command = instruction.command,
                     context = {
@@ -53,7 +55,7 @@ module.exports = function (next, config, modules, files, exitPoints) {
                     return instructionNext(error);
                 }
 
-                if (instruction.isInternal) return processor(instructionNext, storages, i, exitPoint);
+                if (instruction.isInternal) return processor(instructionNext, storages, i, exitPointName);
 
                 let output = new Map(),
                     buffer = storages.buffer;
@@ -105,7 +107,7 @@ module.exports = function (next, config, modules, files, exitPoints) {
                 wrapperName = exitPointComponents[1];
             async.forEachOf(exitPoint, (fileContent, filePath, fileNext) => {
                 if (pageName === wrapperName || typeof output.exitPoints[wrapperName + '+' + wrapperName + ':'][filePath] !== 'string') {
-                    fs.outputFile(path.join(outputPath, config.overwriteOutput ? '' : exitPointName, filePath), fileContent, fileNext);
+                    fs.outputFile(path.join(outputPath, config.overwriteOutput ? '' : exitPointName.replace(/\//g, '^'), filePath), fileContent, fileNext);
                 } else {
                     delete output.exitPoints[exitPointName][filePath];
                     fileNext();
@@ -115,7 +117,9 @@ module.exports = function (next, config, modules, files, exitPoints) {
         }, next);
     }], error => {
         for (let e in output.exitPoints) {
-            output.exitPoints[e] = Object.keys(output.exitPoints[e]);
+            output.exitPoints[e] = Object.keys(output.exitPoints[e]).map(filePath => {
+                return config.overwriteOutput ? filePath : path.join(e.replace(/\//g, '^'), filePath);
+            });
         }
         next(error, output.exitPoints);
     });
@@ -124,6 +128,7 @@ module.exports = function (next, config, modules, files, exitPoints) {
 const internalProcs = ['select', 'write', 'clear', 'debug', 'call'];
 
 function makeInstruction (args) {
+    if (!args) return null;
     if (!(args instanceof Array)) args = [args + ''];
     let isInternal = !!~internalProcs.indexOf(args[0]);
     return {
