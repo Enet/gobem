@@ -1,4 +1,7 @@
 # gobem
+**DON'T USE THE PACKAGE. IT'S DEPRECATED!!!
+USE [webpack](https://github.com/webpack) INSTEAD.**
+
 This npm-module is a builder for SPA BEM projects. It has a lot of options and does the following:
 * scans a root folder to find files describing dependencies *(scanner.js)*;
 * resolves dependencies and forms the list of modules *(resolver.js)*;
